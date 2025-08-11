@@ -6,7 +6,6 @@ import io
 import qrcode
 from PIL import Image
 from google.cloud import firestore
-from streamlit_autorefresh import st_autorefresh
 import math
 
 # --- App Branding and Configuration ---
@@ -264,10 +263,6 @@ def show_game_logo():
 # --- Main App Logic ---
 show_game_logo()
 
-# Auto-refresh the app every 2 seconds to check for state changes
-st_autorefresh(interval=2000, key="data-refresher")
-
-
 if 'role' not in st.session_state:
     st.session_state.role = None
     st.session_state.show_host_password_prompt = False
@@ -276,6 +271,18 @@ if 'role' not in st.session_state:
 if 'create_game_error' not in st.session_state:
     st.session_state.create_game_error = None
 
+# Host's view of the next question button is now a callback function
+def next_question_callback():
+    game_state = get_game_state(st.session_state.game_pin)
+    current_q_index = game_state.get("current_question_index", -1)
+    if current_q_index + 1 < len(game_state["questions"]):
+        update_game_state(st.session_state.game_pin, {
+            "current_question_index": current_q_index + 1
+        })
+        # Reset the show_answer state for the next question
+        st.session_state[f"show_answer_{current_q_index+1}"] = False
+    else:
+        update_game_state(st.session_state.game_pin, {"status": "finished"})
 
 if st.session_state.role is None:
     # --- Role Selection ---
@@ -299,7 +306,7 @@ if st.session_state.role is None:
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("👩‍🏫 I am the Host", use_container_width=True):
-                    st.session_state.show_host_password_prompt = True
+                    st.session_state.role = "host"
                     st.rerun()
             with col2:
                 if st.button("🧑‍🎓 I am a Player", use_container_width=True, type="secondary"):
@@ -348,7 +355,6 @@ A: 4
                 st.error(st.session_state.create_game_error)
 
             if st.button("Create New Game", use_container_width=True):
-                # Clear the error message on button click to re-validate
                 st.session_state.create_game_error = None
                 
                 if not host_name:
@@ -367,20 +373,15 @@ A: 4
                                 quiz_mode.replace("-", "_").lower(), 
                                 time_per_question
                             )
-                            # --- Added a success message and a short delay ---
-                            st.success("Game created successfully! Redirecting...")
-                            time.sleep(2)
                         else:
                             st.session_state.create_game_error = "Invalid TXT format or empty file."
                             
                     except Exception as e:
                         st.session_state.create_game_error = f"An unexpected error occurred: {e}"
 
-                # Rerun only after all checks have been performed
                 st.rerun()
 
     else:
-        # Host Dashboard
         game_pin = st.session_state.game_pin
         game_state = get_game_state(game_pin)
         
@@ -424,7 +425,7 @@ A: 4
                 
                 elif game_state["status"] == "in_progress":
                     if quiz_mode == "instructor_paced":
-                        # Initialize session state for showing the answer
+                        # Ensure show_answer state is reset when moving to a new question
                         if f"show_answer_{current_q_index}" not in st.session_state:
                             st.session_state[f"show_answer_{current_q_index}"] = False
 
@@ -444,28 +445,21 @@ A: 4
 
                         # Toggle answer visibility with a button
                         show_answer_key = f"show_answer_{current_q_index}"
+                        st.session_state[show_answer_key] = st.toggle("Show Answer", value=st.session_state[show_answer_key], key=show_answer_key)
                         
-                        # Fix: Changed button to toggle
-                        st.session_state[show_answer_key] = st.toggle("Show Answer", value=st.session_state[show_answer_key])
-
                         if st.session_state.get(show_answer_key):
                             st.success(f"**Correct Answer:** {question['answer']}")
                         
                         if st.button("Next Question", use_container_width=True, type="primary"):
-                            if current_q_index + 1 < len(game_state["questions"]):
-                                update_game_state(game_pin, {
-                                    "current_question_index": current_q_index + 1
-                                })
-                                # Reset the show_answer state for the next question
-                                st.session_state[show_answer_key] = False
-                            else:
-                                update_game_state(game_pin, {"status": "finished"})
+                            next_question_callback()
+                            st.rerun()
                     
                     elif quiz_mode == "participant_paced_with_timer":
                         st.subheader("Quiz in Progress (Participant-Paced)")
                         st.info("Players are progressing through the quiz at their own pace.")
                         if st.button("End Quiz Early", use_container_width=True, type="primary"):
                             update_game_state(game_pin, {"status": "finished"})
+                            st.rerun()
                 
                 elif game_state["status"] == "finished":
                     st.balloons()
@@ -474,40 +468,18 @@ A: 4
 
 # --- PLAYER VIEW ---
 elif st.session_state.role == "player":
-    if 'game_pin' not in st.session_state:
-        with st.container(border=True):
-            st.header("👋 Join a Game")
-            player_name = st.text_input("Your Name:")
-            
-            # Check for PIN in URL for direct link access
-            query_params = st.query_params
-            pin_from_url = query_params.get("pin", [""])[0]
-            game_pin_input = st.text_input("Game PIN:", value=pin_from_url, max_chars=4)
-            
-            if st.button("Join Game", use_container_width=True, type="secondary") and player_name and game_pin_input:
-                game_pin_input = game_pin_input.upper()
-                if get_game_state(game_pin_input):
-                    success, message = join_game(game_pin_input, player_name)
-                    if success:
-                        st.session_state.player_name = player_name
-                        st.session_state.game_pin = game_pin_input
-                        st.session_state.player_answers = {} # Tracks answers for participant-paced mode
-                        st.rerun()
-                    else:
-                        st.error(message)
-                else:
-                    st.error("Invalid Game PIN.")
-    else:
+    # Refactor the main player logic into a function to avoid duplication
+    def player_game_screen():
         game_pin = st.session_state.game_pin
         player_name = st.session_state.player_name
         game_state = get_game_state(game_pin)
         
         if not game_state: st.error("Game session ended."); st.stop()
-        
+
         # Determine player's current score
         players_data = game_state.get("players", {})
         player_data = players_data.get(player_name, {})
-        current_score = player_data.get("score", 0) if isinstance(player_data, dict) else player_data
+        current_score = player_data.get('score', 0) if isinstance(player_data, dict) else player_data
         
         st.sidebar.info(f"Playing as: **{player_name}** | Score: **{current_score}**")
         show_leaderboard(players_data)
@@ -518,6 +490,9 @@ elif st.session_state.role == "player":
         with st.container(border=True): # Consolidate player screen into one main container
             if game_state["status"] == "waiting":
                 st.info("⏳ Waiting for the host to start the game...")
+                # Add a button for the player to refresh their state manually, in case auto-refresh is slow
+                if st.button("Check for Game Start"):
+                    st.rerun()
             
             elif game_state["status"] == "in_progress":
                 if quiz_mode == "instructor_paced":
@@ -542,6 +517,8 @@ elif st.session_state.role == "player":
                                             game_ref.update({player_score_field: firestore.Increment(1)})
                                         else:
                                             st.error("Incorrect!")
+                                        # Use st.rerun() here to immediately show the "answered" message
+                                        st.rerun()
                         # Player has answered for this question
                         else:
                             st.info("You've answered this question. Waiting for the host to move on.")
@@ -608,6 +585,7 @@ elif st.session_state.role == "player":
                                             game_ref.update({player_score_field: firestore.Increment(1)})
                                         else:
                                             st.error("Incorrect!")
+                                        st.rerun()
 
                         # Navigation buttons
                         st.markdown("---")
@@ -628,3 +606,27 @@ elif st.session_state.role == "player":
             elif game_state["status"] == "finished":
                 st.balloons()
                 st.header("🎉 Quiz Finished! 🎉")
+
+    # --- Player Logic ---
+    if 'game_pin' not in st.session_state:
+        with st.container(border=True):
+            st.header("👋 Join a Game")
+            player_name = st.text_input("Your Name:")
+            
+            # Check for PIN in URL for direct link access
+            query_params = st.query_params
+            pin_from_url = query_params.get("pin", [""])[0]
+            game_pin_input = st.text_input("Game PIN:", value=pin_from_url, max_chars=4)
+            
+            if st.button("Join Game", use_container_width=True, type="secondary") and player_name and game_pin_input:
+                game_pin_input = game_pin_input.upper()
+                success, message = join_game(game_pin_input, player_name)
+                if success:
+                    st.session_state.player_name = player_name
+                    st.session_state.game_pin = game_pin_input
+                    st.session_state.player_answers = {} # Tracks answers for participant-paced mode
+                    st.rerun()
+                else:
+                    st.error(message)
+    else:
+        player_game_screen()
