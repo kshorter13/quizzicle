@@ -355,7 +355,6 @@ A: 4
                                 quiz_mode.replace("-", "_").lower(), 
                                 time_per_question
                             )
-                            st.success("Game created successfully! Redirecting...")
                             st.rerun()
                         else:
                             st.error("Invalid TXT format or empty file.")
