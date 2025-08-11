@@ -426,11 +426,19 @@ A: 4
                     st.subheader("Waiting for players to join...")
                     st.info(f"Current Players: {len(game_state.get('players', {}))}")
                     if st.button("Start Game", disabled=not game_state.get("players"), use_container_width=True):
-                        update_game_state(game_pin, {
-                            "status": "in_progress", 
-                            "current_question_index": 0,
-                            "question_start_time": firestore.SERVER_TIMESTAMP
-                        })
+                        # FIX: For timed mode, also set the question_start_time here
+                        if quiz_mode == "participant_paced_with_timer":
+                            update_game_state(game_pin, {
+                                "status": "in_progress", 
+                                "current_question_index": 0,
+                                "question_start_time": firestore.SERVER_TIMESTAMP
+                            })
+                        else:
+                             update_game_state(game_pin, {
+                                "status": "in_progress", 
+                                "current_question_index": 0,
+                                "question_start_time": None
+                            })
                         st.rerun()
                 
                 elif game_state["status"] == "in_progress":
@@ -542,29 +550,21 @@ elif st.session_state.role == "player":
                 elif quiz_mode == "participant_paced_with_timer":
                     total_questions = len(game_state["questions"])
                     
-                    # Player's state for this mode
-                    if "current_player_q_index" not in st.session_state:
-                        st.session_state.current_player_q_index = 0
-                    
-                    player_q_index = st.session_state.current_player_q_index
-                    
-                    if player_q_index < total_questions:
+                    # FIX: Corrected player screen logic for timed mode
+                    if player_q_index < total_questions and not game_state.get("status") == "finished":
                         question = game_state["questions"][player_q_index]
                         
                         # Timer logic
                         time_per_question = game_state.get("time_per_question", 60)
                         
-                        # FIX: Use the Firestore server timestamp instead of a client-side timestamp
+                        # Use the Firestore server timestamp instead of a client-side timestamp
                         question_start_time = game_state.get("question_start_time")
                         if question_start_time:
-                            # Calculate time elapsed using the server timestamp
                             elapsed_time = time.time() - question_start_time.timestamp()
                             time_left = time_per_question - elapsed_time
                         else:
                             time_left = time_per_question
-                            st.session_state.last_q_index = player_q_index
 
-                        # Check for time up to prevent negative numbers
                         if time_left < 0:
                             time_left = 0
 
