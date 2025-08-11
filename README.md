@@ -1,4 +1,5 @@
-# 🎈 Blank app template
+<img width="1024" height="1024" alt="image" src="https://github.com/user-attachments/assets/90597ce8-1b42-4243-9839-f81319e71ece" />
+**Quizzicle** 
 
 A simple Streamlit app template for you to modify!
 
