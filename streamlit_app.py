@@ -454,8 +454,8 @@ A: 4
                         
                         st.markdown("---")
 
-                        # FIX: Remove the redundant assignment. The toggle widget's key handles state.
-                        st.toggle("Show Answer", value=st.session_state.get(show_answer_key, False), key=show_answer_key)
+                        # FIX: Simplified st.toggle usage to resolve the toggle button issue
+                        st.toggle("Show Answer", key=show_answer_key)
                         
                         if st.session_state.get(show_answer_key):
                             st.success(f"**Correct Answer:** {question['answer']}")
@@ -617,8 +617,35 @@ elif st.session_state.role == "player":
                         st.header("🎉 Quiz Finished! 🎉")
 
             elif game_state["status"] == "finished":
+                # New End-of-Quiz Summary for Players
                 st.balloons()
                 st.header("🎉 Quiz Finished! 🎉")
+                st.subheader("Your Results")
+                
+                # Get and sort all players by score
+                players_data = game_state.get('players', {})
+                sorted_players = sorted(players_data.items(), key=lambda item: item[1].get('score', 0), reverse=True)
+                
+                # Find the current player's rank
+                player_rank = next((i for i, (name, _) in enumerate(sorted_players) if name == st.session_state.player_name), None)
+                
+                # Display the player's results
+                if player_rank is not None:
+                    player_score_data = players_data.get(st.session_state.player_name, {})
+                    st.metric(label="Your Final Score", value=player_score_data.get('score', 0))
+                    st.metric(label="Your Rank", value=f"#{player_rank + 1} of {len(sorted_players)} players")
+
+                st.markdown("---")
+                st.subheader("Final Leaderboard")
+                
+                # Display the final leaderboard
+                for i, (name, score_data) in enumerate(sorted_players):
+                    medal = ""
+                    if i == 0: medal = "🥇"
+                    elif i == 1: medal = "🥈"
+                    elif i == 2: medal = "🥉"
+                    st.markdown(f"**{medal} {name}**: {score_data.get('score', 0)}")
+
 
     # --- Player Logic ---
     if 'game_pin' not in st.session_state:
