@@ -453,9 +453,8 @@ A: 4
                         
                         st.markdown("---")
 
-                        # Toggle answer visibility with a button
-                        show_answer_key = f"show_answer_{current_q_index}"
-                        st.session_state[show_answer_key] = st.toggle("Show Answer", value=st.session_state[show_answer_key], key=show_answer_key)
+                        # FIX: Remove the redundant assignment. The toggle widget's key handles state.
+                        st.toggle("Show Answer", value=st.session_state.get(show_answer_key, False), key=show_answer_key)
                         
                         if st.session_state.get(show_answer_key):
                             st.success(f"**Correct Answer:** {question['answer']}")
