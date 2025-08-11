@@ -621,6 +621,7 @@ def join_game_callback(player_name, game_pin):
     else:
         st.error(message)
 
+# The primary entry point for the player's app logic
 if st.session_state.role == "player":
     if 'game_pin' not in st.session_state:
         # Initial join form
