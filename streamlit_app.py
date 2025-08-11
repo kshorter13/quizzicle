@@ -554,14 +554,16 @@ elif st.session_state.role == "player":
                         # Timer logic
                         time_per_question = game_state.get("time_per_question", 60)
                         
-                        # Check for the start time of the current question
-                        if 'question_start_time' not in st.session_state or st.session_state.current_player_q_index != st.session_state.get('last_q_index'):
-                            st.session_state.question_start_time = time.time()
-                            st.session_state.last_q_index = st.session_state.current_player_q_index
-                            
-                        elapsed_time = time.time() - st.session_state.question_start_time
-                        time_left = time_per_question - elapsed_time
-                        
+                        # FIX: Use the Firestore server timestamp instead of a client-side timestamp
+                        question_start_time = game_state.get("question_start_time")
+                        if question_start_time:
+                            # Calculate time elapsed using the server timestamp
+                            elapsed_time = time.time() - question_start_time.timestamp()
+                            time_left = time_per_question - elapsed_time
+                        else:
+                            time_left = time_per_question
+                            st.session_state.last_q_index = player_q_index
+
                         # Check for time up to prevent negative numbers
                         if time_left < 0:
                             time_left = 0
