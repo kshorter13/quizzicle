@@ -526,7 +526,6 @@ elif st.session_state.role == "player":
                         st.info("⏳ Waiting for the host to start the game...")
             
                 elif quiz_mode == "participant_paced_with_timer":
-                    # FIX: Corrected player screen logic for timed mode
                     if current_q_index < total_questions:
                         question = game_state["questions"][current_q_index]
                         
@@ -542,7 +541,6 @@ elif st.session_state.role == "player":
                         if time_left < 0:
                             time_left = 0
                             
-                        # If time runs out, force player to the next question
                         if time_left == 0 and player_last_answered_q < current_q_index:
                              st.error("Time's up!")
                              update_game_state(game_pin, {f"players.{player_name}.last_answered_q": current_q_index})
@@ -610,15 +608,9 @@ elif st.session_state.role == "player":
                     elif i == 2: medal = "🥉"
                     st.markdown(f"**{medal} {name}**: {score_data.get('score', 0)}")
 
+
     else:
-        with st.container(border=True):
-            st.header("👋 Join a Game")
-            st.write("Your session has ended or a game is not active. Please re-enter your details.")
-            st.text_input("Your Name:", key="join_name")
-            st.text_input("Game PIN:", max_chars=4, key="join_pin")
-            if st.button("Join Game", use_container_width=True, type="secondary"):
-                join_game_callback(st.session_state.join_name, st.session_state.join_pin)
-                st.rerun()
+        player_game_screen()
 
 def join_game_callback(player_name, game_pin):
     game_pin = game_pin.upper()
@@ -629,7 +621,6 @@ def join_game_callback(player_name, game_pin):
     else:
         st.error(message)
 
-# The primary entry point for the player's app logic
 if st.session_state.role == "player":
     if 'game_pin' not in st.session_state:
         # Initial join form
