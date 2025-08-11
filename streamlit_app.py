@@ -366,6 +366,9 @@ A: 4
                                 quiz_mode.replace("-", "_").lower(), 
                                 time_per_question
                             )
+                            # --- Added a success message and a short delay ---
+                            st.success("Game created successfully! Redirecting...")
+                            time.sleep(2)
                         else:
                             st.session_state.create_game_error = "Invalid TXT format or empty file."
                             
