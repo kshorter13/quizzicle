@@ -11,7 +11,7 @@ import math
 
 # --- App Branding and Configuration ---
 APP_NAME = "Quizzicle"
-LOGO_URL = "Loading image.jpg" # Corrected: Use the filename of your logo image
+LOGO_URL = "https://private-user-images.githubusercontent.com/183680452/476401103-90597ce8-1b42-4243-9839-f81319e71ece.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NTQ4ODk1ODEsIm5iZiI6MTc1NDg4OTI4MSwicGF0aCI6Ii8xODM2ODA0NTIvNDc2NDAxMTAzLTkwNTk3Y2U4LTFiNDItNDI0My05ODM5LWY4MTMxOWU3MWVjZS5wbmc_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjUwODExJTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI1MDgxMVQwNTE0NDFaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT0xOGM0MGI2NWI2NDEzMWYxYWNhNDRkZjYyZjE1MGNhYTQ5YjVjZmZkNzQ0M2ZlOGI2NmI2NDI1ZDc2OTQwYjllJlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCJ9.fhDvMf2_dcSPgs6PJ4Dnc2plPHX2XgkPRv9HPY5tmRE" # Corrected: Use the filename of your logo image
 PLAYER_MODE_URL = "https://your-streamlit-app-url.streamlit.app" # REMINDER: Change this to your deployed app's URL
 
 st.set_page_config(
