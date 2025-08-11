@@ -11,8 +11,8 @@ import math
 
 # --- App Branding and Configuration ---
 APP_NAME = "Quizzicle"
-# Make sure "Loading image.jpg" is in the same directory as this script.
-LOGO_URL = "Loading image.jpg" 
+# Make sure "Loading image.jpeg" is in the same directory as this script.
+LOGO_URL = "Loading image.jpeg" 
 PLAYER_MODE_URL = "https://your-streamlit-app-url.streamlit.app" # REMINDER: Change this to your deployed app's URL
 
 st.set_page_config(
