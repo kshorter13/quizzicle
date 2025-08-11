@@ -250,19 +250,14 @@ def show_leaderboard(players):
         score = score_data.get('score', 0) if isinstance(score_data, dict) else score_data
         st.sidebar.markdown(f"**{medal} {name}**: {score}")
 
-def show_game_logo():
-    """Displays the Quizzicle logo."""
-    col_logo, col_title = st.columns([1, 4])
-    with col_logo:
-        # Corrected parameter name from 'use_column_width' to 'use_container_width'
-        st.image(LOGO_URL, width=100, use_container_width=True) 
-    with col_title:
-        st.title(APP_NAME)
-    st.markdown("---")
-
+def show_game_logo_host():
+    """Displays the Quizzicle logo for the host page."""
+    # Use a container to prevent logo from taking up entire page width
+    with st.container():
+        st.image(LOGO_URL, width=100, use_container_width=False)
+        st.write(" ") # Add a small spacer
 
 # --- Main App Logic ---
-# FIX: Initialize session state at the very top of the script
 if 'role' not in st.session_state:
     st.session_state.role = None
 if 'show_host_password_prompt' not in st.session_state:
@@ -270,11 +265,7 @@ if 'show_host_password_prompt' not in st.session_state:
 if 'create_game_error' not in st.session_state:
     st.session_state.create_game_error = None
 
-
-show_game_logo()
-
 # --- Re-introducing autorefresh for the host's waiting screen, but not for the player's ---
-# This ensures the host sees new players as they join without a manual refresh
 if st.session_state.get('role') == 'host' and 'game_pin' in st.session_state:
     game_state = get_game_state(st.session_state.game_pin)
     if game_state and game_state.get('status') == 'waiting':
@@ -359,7 +350,6 @@ O: 5
 A: 4
                 """, language="text")
             
-            # Display persistent error message if it exists
             if st.session_state.create_game_error:
                 st.error(st.session_state.create_game_error)
 
@@ -396,38 +386,32 @@ A: 4
         
         if not game_state: st.error("Game not found. You may have to create a new game."); st.stop()
         
-        # --- Host Layout: QR on the left, dashboard on the right ---
-        col_qr, col_dashboard = st.columns([1, 2])
+        # --- NEW HOST LAYOUT ---
+        col_left, col_right = st.columns([1, 2])
         
-        with col_qr:
-            st.header("🎮 Host Dashboard")
-            st.markdown(f"<div class='game-pin-display'>{game_pin}</div>", unsafe_allow_html=True)
+        with col_left:
+            show_game_logo_host()
+            with st.container(border=True):
+                st.header("🎮 Game Info")
+                st.markdown(f"<div class='game-pin-display'>{game_pin}</div>", unsafe_allow_html=True)
+                st.subheader("📲 Share Link & QR")
+                qr_text = f"{PLAYER_MODE_URL}?pin={game_pin}"
+                qr_img = qrcode.make(qr_text)
+                buf = io.BytesIO()
+                qr_img.save(buf, format="PNG")
+                st.image(buf, caption="Scan to join", use_container_width=True)
             
-            # QR Code and Link Sharing
-            st.markdown("---")
-            st.subheader("📲 Share Game Link & QR Code")
-            qr_text = f"{PLAYER_MODE_URL}?pin={game_pin}"
-            qr_img = qrcode.make(qr_text)
-            buf = io.BytesIO()
-            qr_img.save(buf, format="PNG")
-            st.image(buf, caption="Scan to join the game", use_container_width=True)
-            st.markdown(f"**Direct Link:** `{PLAYER_MODE_URL}?pin={game_pin}`")
-
-        with col_dashboard:
             with st.container(border=True):
                 st.subheader("🏆 Live Leaderboard")
                 show_leaderboard(game_state.get("players", {}))
 
-            current_q_index = game_state.get("current_question_index", -1)
-            quiz_mode = game_state.get("quiz_mode")
-            
+        with col_right:
             with st.container(border=True):
                 if game_state["status"] == "waiting":
                     st.subheader("Waiting for players to join...")
                     st.info(f"Current Players: {len(game_state.get('players', {}))}")
                     if st.button("Start Game", disabled=not game_state.get("players"), use_container_width=True):
-                        # FIX: For timed mode, also set the question_start_time here
-                        if quiz_mode == "participant_paced_with_timer":
+                        if game_state.get("quiz_mode") == "participant_paced_with_timer":
                             update_game_state(game_pin, {
                                 "status": "in_progress", 
                                 "current_question_index": 0,
@@ -442,8 +426,8 @@ A: 4
                         st.rerun()
                 
                 elif game_state["status"] == "in_progress":
-                    if quiz_mode == "instructor_paced":
-                        # Ensure show_answer state is reset when moving to a new question
+                    current_q_index = game_state.get("current_question_index", -1)
+                    if game_state.get("quiz_mode") == "instructor_paced":
                         show_answer_key = f"show_answer_{current_q_index}"
                         if show_answer_key not in st.session_state:
                             st.session_state[show_answer_key] = False
@@ -454,15 +438,13 @@ A: 4
                         
                         st.markdown("---")
                         
-                        # Display options for the host
                         st.write("Options:")
                         answer_icons = ["🟥", "🔷", "🟡", "💚"]
                         for i, option in enumerate(question["options"]):
                             st.markdown(f"{answer_icons[i]} {option}")
                         
                         st.markdown("---")
-
-                        # FIX: Simplified st.toggle usage to resolve the toggle button issue
+                        
                         st.toggle("Show Answer", key=show_answer_key)
                         
                         if st.session_state.get(show_answer_key):
@@ -472,7 +454,7 @@ A: 4
                             next_question_callback()
                             st.rerun()
                     
-                    elif quiz_mode == "participant_paced_with_timer":
+                    elif game_state.get("quiz_mode") == "participant_paced_with_timer":
                         st.subheader("Quiz in Progress (Participant-Paced)")
                         st.info("Players are progressing through the quiz at their own pace.")
                         if st.button("End Quiz Early", use_container_width=True, type="primary"):
@@ -492,7 +474,6 @@ elif st.session_state.role == "player":
         player_name = st.session_state.player_name
         game_state = get_game_state(game_pin)
         
-        # This is a critical check to ensure the player's screen doesn't go blank
         if not game_state: 
             st.error("Game session ended.");
             st.stop()
@@ -500,9 +481,8 @@ elif st.session_state.role == "player":
         quiz_mode = game_state.get("quiz_mode")
 
         if quiz_mode == "participant_paced_with_timer":
-            st_autorefresh(interval=500, key="player_timer_refresher") # Use a faster refresh for the timer
+            st_autorefresh(interval=500, key="player_timer_refresher")
 
-        # Determine player's current score
         players_data = game_state.get("players", {})
         player_data = players_data.get(player_name, {})
         current_score = player_data.get('score', 0) if isinstance(player_data, dict) else player_data
@@ -510,14 +490,11 @@ elif st.session_state.role == "player":
         st.sidebar.info(f"Playing as: **{player_name}** | Score: **{current_score}**")
         show_leaderboard(players_data)
         
-        # FIX: The player's current question index must be fetched from the database, not a local session state.
         player_last_answered_q = player_data.get('last_answered_q', -1)
         current_q_index = player_last_answered_q + 1
-        
         total_questions = len(game_state["questions"])
         
-        with st.container(border=True): # Consolidate player screen into one main container
-            # Check the game status from the database to render the correct view
+        with st.container(border=True):
             if game_state["status"] == "waiting":
                 st.info("⏳ Waiting for the host to start the game...")
             
@@ -525,7 +502,6 @@ elif st.session_state.role == "player":
                 if quiz_mode == "instructor_paced":
                     current_q_index_host = game_state.get("current_question_index", -1)
                     if current_q_index_host > -1:
-                        # Player has not answered for this question yet
                         if f"answered_{current_q_index_host}" not in st.session_state:
                             question = game_state["questions"][current_q_index_host]
                             st.subheader(f"Question {current_q_index_host + 1}")
@@ -540,37 +516,29 @@ elif st.session_state.role == "player":
                                         if option == question["answer"]:
                                             st.balloons()
                                             st.success("Correct!")
-                                            player_score_field = f"players.{player_name}.score"
                                             game_ref = st.session_state.db.collection("games").document(game_pin)
-                                            game_ref.update({player_score_field: firestore.Increment(1)})
+                                            game_ref.update({f"players.{player_name}.score": firestore.Increment(1)})
                                         else:
                                             st.error("Incorrect!")
-                                        # Use st.rerun() here to immediately show the "answered" message
                                         st.rerun()
-                        # Player has answered for this question
                         else:
                             st.info("You've answered this question. Waiting for the host to move on.")
-                    # Waiting for first question to start
                     else:
                         st.info("⏳ Waiting for the host to start the game...")
             
                 elif quiz_mode == "participant_paced_with_timer":
-                    # FIX: Corrected player screen logic for timed mode
                     if current_q_index < total_questions:
                         question = game_state["questions"][current_q_index]
                         
-                        # Timer logic
                         time_per_question = game_state.get("time_per_question", 60)
-                        
-                        # Use the Firestore server timestamp for accurate time sync
                         question_start_time = game_state.get("question_start_time")
+                        
                         if question_start_time:
                             elapsed_time = time.time() - question_start_time.timestamp()
                             time_left = time_per_question - elapsed_time
                         else:
-                            # If no start time is set, assume the page just loaded and start the timer
                             time_left = time_per_question
-                            
+
                         if time_left < 0:
                             time_left = 0
                             
@@ -580,7 +548,6 @@ elif st.session_state.role == "player":
                              update_game_state(game_pin, {f"players.{player_name}.last_answered_q": current_q_index})
                              st.rerun()
 
-                        # Display the question and timer
                         timer_text = st.empty()
                         timer_text.markdown(f"**Time Remaining:** :alarm_clock: **{math.ceil(time_left)}** seconds")
 
@@ -592,7 +559,6 @@ elif st.session_state.role == "player":
                         if has_answered:
                             st.success("You've already answered this question!")
                         else:
-                            # Display answer options
                             answer_icons = ["🟥", "🔷", "🟡", "💚"]
                             cols = st.columns(2)
                             for i, option in enumerate(question["options"]):
@@ -602,7 +568,6 @@ elif st.session_state.role == "player":
                                             st.balloons()
                                             st.success("Correct!")
                                             game_ref = st.session_state.db.collection("games").document(game_pin)
-                                            # Update the player's score and last answered question in the database
                                             game_ref.update({
                                                 f"players.{player_name}.score": firestore.Increment(1),
                                                 f"players.{player_name}.last_answered_q": current_q_index
@@ -612,46 +577,32 @@ elif st.session_state.role == "player":
                                             game_ref = st.session_state.db.collection("games").document(game_pin)
                                             game_ref.update({f"players.{player_name}.last_answered_q": current_q_index})
                                         st.rerun()
-
-                        # Navigation buttons
                         st.markdown("---")
                         nav_cols = st.columns(2)
                         with nav_cols[0]:
                             if st.button("Previous Question", disabled=current_q_index == 0, use_container_width=True):
-                                # Update player's progress in the database to go back one question
-                                update_game_state(game_pin, {f"players.{player_name}.last_answered_q": current_q_index - 2})
+                                update_game_state(game_pin, {f"players.{player_name}.last_answered_q": player_last_answered_q - 1})
                                 st.rerun()
                         with nav_cols[1]:
-                            if st.button("Next Question", disabled=current_q_index >= total_questions - 1, use_container_width=True):
-                                # Update player's progress in the database to move forward
-                                update_game_state(game_pin, {f"players.{player_name}.last_answered_q": current_q_index})
+                            if st.button("Next Question", disabled=player_last_answered_q < current_q_index, use_container_width=True):
+                                update_game_state(game_pin, {f"players.{player_name}.last_answered_q": player_last_answered_q + 1})
                                 st.rerun()
                     else:
                         st.header("🎉 Quiz Finished! 🎉")
 
             elif game_state["status"] == "finished":
-                # End-of-Quiz Summary for Players
                 st.balloons()
                 st.header("🎉 Quiz Finished! 🎉")
                 st.subheader("Your Results")
-                
-                # Get and sort all players by score
                 players_data = game_state.get('players', {})
                 sorted_players = sorted(players_data.items(), key=lambda item: item[1].get('score', 0), reverse=True)
-                
-                # Find the current player's rank
                 player_rank = next((i for i, (name, _) in enumerate(sorted_players) if name == st.session_state.player_name), None)
-                
-                # Display the player's results
                 if player_rank is not None:
                     player_score_data = players_data.get(st.session_state.player_name, {})
                     st.metric(label="Your Final Score", value=player_score_data.get('score', 0))
                     st.metric(label="Your Rank", value=f"#{player_rank + 1} of {len(sorted_players)} players")
-
                 st.markdown("---")
                 st.subheader("Final Leaderboard")
-                
-                # Display the final leaderboard
                 for i, (name, score_data) in enumerate(sorted_players):
                     medal = ""
                     if i == 0: medal = "🥇"
@@ -659,14 +610,33 @@ elif st.session_state.role == "player":
                     elif i == 2: medal = "🥉"
                     st.markdown(f"**{medal} {name}**: {score_data.get('score', 0)}")
 
+    else:
+        with st.container(border=True):
+            st.header("👋 Join a Game")
+            st.write("Your session has ended or a game is not active. Please re-enter your details.")
+            st.text_input("Your Name:", key="join_name")
+            st.text_input("Game PIN:", max_chars=4, key="join_pin")
+            if st.button("Join Game", use_container_width=True, type="secondary"):
+                join_game_callback(st.session_state.join_name, st.session_state.join_pin)
+                st.rerun()
 
-    # --- Player Logic ---
+def join_game_callback(player_name, game_pin):
+    game_pin = game_pin.upper()
+    success, message = join_game(game_pin, player_name)
+    if success:
+        st.session_state.player_name = player_name
+        st.session_state.game_pin = game_pin
+    else:
+        st.error(message)
+
+# The primary entry point for the player's app logic
+if st.session_state.role == "player":
     if 'game_pin' not in st.session_state:
+        # Initial join form
         with st.container(border=True):
             st.header("👋 Join a Game")
             player_name = st.text_input("Your Name:")
             
-            # Check for PIN in URL for direct link access
             query_params = st.query_params
             pin_from_url = query_params.get("pin", [""])[0]
             game_pin_input = st.text_input("Game PIN:", value=pin_from_url, max_chars=4)
@@ -677,7 +647,7 @@ elif st.session_state.role == "player":
                 if success:
                     st.session_state.player_name = player_name
                     st.session_state.game_pin = game_pin_input
-                    st.session_state.player_answers = {} # Tracks answers for participant-paced mode
+                    st.session_state.player_answers = {}
                     st.rerun()
                 else:
                     st.error(message)
