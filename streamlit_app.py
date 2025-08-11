@@ -551,7 +551,7 @@ elif st.session_state.role == "player":
                     total_questions = len(game_state["questions"])
                     
                     # FIX: Corrected player screen logic for timed mode
-                    if player_q_index < total_questions and not game_state.get("status") == "finished":
+                    if player_q_index < total_questions:
                         question = game_state["questions"][player_q_index]
                         
                         # Timer logic
@@ -559,7 +559,7 @@ elif st.session_state.role == "player":
                         
                         # Use the Firestore server timestamp instead of a client-side timestamp
                         question_start_time = game_state.get("question_start_time")
-                        if question_start_time:
+                        if question_start_time and game_state.get("status") == "in_progress":
                             elapsed_time = time.time() - question_start_time.timestamp()
                             time_left = time_per_question - elapsed_time
                         else:
