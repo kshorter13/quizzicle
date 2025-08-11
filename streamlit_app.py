@@ -404,74 +404,71 @@ A: 4
             st.markdown(f"**Direct Link:** `{PLAYER_MODE_URL}?pin={game_pin}`")
 
         with col_dashboard:
-            st.markdown("<div class='main-content'>", unsafe_allow_html=True)
-            show_leaderboard(game_state.get("players", {}))
-            st.markdown("</div>", unsafe_allow_html=True)
-            
+            with st.container(border=True): # Removed redundant main-content containers
+                show_leaderboard(game_state.get("players", {}))
+
             current_q_index = game_state.get("current_question_index", -1)
             quiz_mode = game_state.get("quiz_mode")
             
-            st.markdown("<div class='main-content'>", unsafe_allow_html=True)
-            if game_state["status"] == "waiting":
-                st.subheader("Waiting for players to join...")
-                st.info(f"Current Players: {len(game_state.get('players', {}))}")
-                if st.button("Start Game", disabled=not game_state.get("players"), use_container_width=True):
-                    update_game_state(game_pin, {
-                        "status": "in_progress", 
-                        "current_question_index": 0,
-                        "question_start_time": firestore.SERVER_TIMESTAMP
-                    })
-            
-            elif game_state["status"] == "in_progress":
-                if quiz_mode == "instructor_paced":
-                    # Initialize session state for showing the answer
-                    if f"show_answer_{current_q_index}" not in st.session_state:
-                        st.session_state[f"show_answer_{current_q_index}"] = False
+            with st.container(border=True): # Removed redundant main-content containers
+                if game_state["status"] == "waiting":
+                    st.subheader("Waiting for players to join...")
+                    st.info(f"Current Players: {len(game_state.get('players', {}))}")
+                    if st.button("Start Game", disabled=not game_state.get("players"), use_container_width=True):
+                        update_game_state(game_pin, {
+                            "status": "in_progress", 
+                            "current_question_index": 0,
+                            "question_start_time": firestore.SERVER_TIMESTAMP
+                        })
+                
+                elif game_state["status"] == "in_progress":
+                    if quiz_mode == "instructor_paced":
+                        # Initialize session state for showing the answer
+                        if f"show_answer_{current_q_index}" not in st.session_state:
+                            st.session_state[f"show_answer_{current_q_index}"] = False
 
-                    st.subheader(f"Question {current_q_index + 1}/{len(game_state['questions'])}")
-                    question = game_state["questions"][current_q_index]
-                    st.title(question["question"])
-                    
-                    st.markdown("---")
-                    
-                    # Display options for the host
-                    st.write("Options:")
-                    answer_icons = ["🟥", "🔷", "🟡", "💚"]
-                    for i, option in enumerate(question["options"]):
-                        st.markdown(f"{answer_icons[i]} {option}")
-                    
-                    st.markdown("---")
+                        st.subheader(f"Question {current_q_index + 1}/{len(game_state['questions'])}")
+                        question = game_state["questions"][current_q_index]
+                        st.title(question["question"])
+                        
+                        st.markdown("---")
+                        
+                        # Display options for the host
+                        st.write("Options:")
+                        answer_icons = ["🟥", "🔷", "🟡", "💚"]
+                        for i, option in enumerate(question["options"]):
+                            st.markdown(f"{answer_icons[i]} {option}")
+                        
+                        st.markdown("---")
 
-                    # Toggle answer visibility with a button
-                    show_answer_key = f"show_answer_{current_q_index}"
-                    if st.button("Show Answer", key=f"btn_show_answer_{current_q_index}"):
-                        st.session_state[show_answer_key] = True
+                        # Toggle answer visibility with a button
+                        show_answer_key = f"show_answer_{current_q_index}"
+                        if st.button("Show Answer", key=f"btn_show_answer_{current_q_index}"):
+                            st.session_state[show_answer_key] = True
 
-                    if st.session_state.get(show_answer_key):
-                        st.success(f"**Correct Answer:** {question['answer']}")
+                        if st.session_state.get(show_answer_key):
+                            st.success(f"**Correct Answer:** {question['answer']}")
+                        
+                        if st.button("Next Question", use_container_width=True, type="primary"):
+                            if current_q_index + 1 < len(game_state["questions"]):
+                                update_game_state(game_pin, {
+                                    "current_question_index": current_q_index + 1
+                                })
+                                # Reset the show_answer state for the next question
+                                st.session_state[show_answer_key] = False
+                            else:
+                                update_game_state(game_pin, {"status": "finished"})
                     
-                    if st.button("Next Question", use_container_width=True, type="primary"):
-                        if current_q_index + 1 < len(game_state["questions"]):
-                            update_game_state(game_pin, {
-                                "current_question_index": current_q_index + 1
-                            })
-                            # Reset the show_answer state for the next question
-                            st.session_state[show_answer_key] = False
-                        else:
+                    elif quiz_mode == "participant_paced_with_timer":
+                        st.subheader("Quiz in Progress (Participant-Paced)")
+                        st.info("Players are progressing through the quiz at their own pace.")
+                        if st.button("End Quiz Early", use_container_width=True, type="primary"):
                             update_game_state(game_pin, {"status": "finished"})
                 
-                elif quiz_mode == "participant_paced_with_timer":
-                    st.subheader("Quiz in Progress (Participant-Paced)")
-                    st.info("Players are progressing through the quiz at their own pace.")
-                    if st.button("End Quiz Early", use_container_width=True, type="primary"):
-                        update_game_state(game_pin, {"status": "finished"})
+                elif game_state["status"] == "finished":
+                    st.balloons()
+                    st.header("🎉 Quiz Finished! 🎉")
             
-            elif game_state["status"] == "finished":
-                st.balloons()
-                st.header("🎉 Quiz Finished! 🎉")
-            
-            st.markdown("</div>", unsafe_allow_html=True)
-
 
 # --- PLAYER VIEW ---
 elif st.session_state.role == "player":
@@ -516,119 +513,116 @@ elif st.session_state.role == "player":
         current_q_index = game_state.get("current_question_index", -1)
         quiz_mode = game_state.get("quiz_mode")
         
-        st.markdown("<div class='main-content'>", unsafe_allow_html=True)
+        with st.container(border=True): # Consolidate player screen into one main container
+            if game_state["status"] == "waiting":
+                st.info("⏳ Waiting for the host to start the game...")
+            
+            elif game_state["status"] == "in_progress":
+                if quiz_mode == "instructor_paced":
+                    if current_q_index > -1:
+                        # Player has not answered for this question yet
+                        if f"answered_{current_q_index}" not in st.session_state:
+                            question = game_state["questions"][current_q_index]
+                            st.subheader(f"Question {current_q_index + 1}")
+                            st.title(question["question"])
+                            
+                            answer_icons = ["🟥", "🔷", "🟡", "💚"]
+                            cols = st.columns(2)
+                            for i, option in enumerate(question["options"]):
+                                with cols[i % 2]:
+                                    if st.button(f"{answer_icons[i]} {option}", use_container_width=True, key=f"opt_{i}"):
+                                        st.session_state[f"answered_{current_q_index}"] = True
+                                        if option == question["answer"]:
+                                            st.balloons()
+                                            st.success("Correct!")
+                                            player_score_field = f"players.{player_name}.score"
+                                            game_ref = st.session_state.db.collection("games").document(game_pin)
+                                            game_ref.update({player_score_field: firestore.Increment(1)})
+                                        else:
+                                            st.error("Incorrect!")
+                        # Player has answered for this question
+                        else:
+                            st.info("You've answered this question. Waiting for the host to move on.")
+                    # Waiting for first question to start
+                    else:
+                        st.info("⏳ Waiting for the host to start the game...")
+            
+                elif quiz_mode == "participant_paced_with_timer":
+                    total_questions = len(game_state["questions"])
+                    
+                    # Player's state for this mode
+                    if "current_player_q_index" not in st.session_state:
+                        st.session_state.current_player_q_index = 0
+                    
+                    player_q_index = st.session_state.current_player_q_index
+                    
+                    if player_q_index < total_questions:
+                        question = game_state["questions"][player_q_index]
+                        
+                        # Timer logic
+                        time_per_question = game_state.get("time_per_question", 60)
+                        now = firestore.SERVER_TIMESTAMP
+                        time_left = time_per_question
+                        
+                        if "question_start_time" in st.session_state:
+                            # Cannot get server time from client, so we assume a start time
+                            # a more robust implementation would use a server function
+                            elapsed_time = time.time() - st.session_state.question_start_time
+                            time_left = time_per_question - elapsed_time
+                        else:
+                            st.session_state.question_start_time = time.time()
 
-        if game_state["status"] == "waiting":
-            st.info("⏳ Waiting for the host to start the game...")
-        
-        elif game_state["status"] == "in_progress":
-            if quiz_mode == "instructor_paced":
-                if current_q_index > -1:
-                    # Player has not answered for this question yet
-                    if f"answered_{current_q_index}" not in st.session_state:
-                        question = game_state["questions"][current_q_index]
-                        st.subheader(f"Question {current_q_index + 1}")
+                        # Display the question and timer
+                        timer_text = st.empty()
+                        timer_text.markdown(f"**Time Remaining:** :alarm_clock: **{math.ceil(time_left)}** seconds")
+
+                        st.subheader(f"Question {player_q_index + 1}/{total_questions}")
                         st.title(question["question"])
                         
-                        answer_icons = ["🟥", "🔷", "🟡", "💚"]
-                        cols = st.columns(2)
-                        for i, option in enumerate(question["options"]):
-                            with cols[i % 2]:
-                                if st.button(f"{answer_icons[i]} {option}", use_container_width=True, key=f"opt_{i}"):
-                                    st.session_state[f"answered_{current_q_index}"] = True
-                                    if option == question["answer"]:
-                                        st.balloons()
-                                        st.success("Correct!")
-                                        player_score_field = f"players.{player_name}"
-                                        game_ref = st.session_state.db.collection("games").document(game_pin)
-                                        game_ref.update({player_score_field: firestore.Increment(1)})
-                                    else:
-                                        st.error("Incorrect!")
-                    # Player has answered for this question
-                    else:
-                        st.info("You've answered this question. Waiting for the host to move on.")
-                # Waiting for first question to start
-                else:
-                    st.info("⏳ Waiting for the host to start the game...")
-            
-            elif quiz_mode == "participant_paced_with_timer":
-                total_questions = len(game_state["questions"])
-                
-                # Player's state for this mode
-                if "current_player_q_index" not in st.session_state:
-                    st.session_state.current_player_q_index = 0
-                
-                player_q_index = st.session_state.current_player_q_index
-                
-                if player_q_index < total_questions:
-                    question = game_state["questions"][player_q_index]
-                    
-                    # Timer logic
-                    time_per_question = game_state.get("time_per_question", 60)
-                    now = firestore.SERVER_TIMESTAMP
-                    time_left = time_per_question
-                    
-                    if "question_start_time" in st.session_state:
-                        # Cannot get server time from client, so we assume a start time
-                        # a more robust implementation would use a server function
-                        elapsed_time = time.time() - st.session_state.question_start_time
-                        time_left = time_per_question - elapsed_time
-                    else:
-                        st.session_state.question_start_time = time.time()
-
-                    # Display the question and timer
-                    timer_text = st.empty()
-                    timer_text.markdown(f"**Time Remaining:** :alarm_clock: **{math.ceil(time_left)}** seconds")
-
-                    st.subheader(f"Question {player_q_index + 1}/{total_questions}")
-                    st.title(question["question"])
-                    
-                    # Check if player has already answered this question or time is up
-                    has_answered = f"answered_paced_{player_q_index}" in st.session_state.player_answers
-                    is_time_up = time_left <= 0
-                    
-                    if has_answered or is_time_up:
-                        if has_answered:
-                            st.success("You've already answered this question!")
+                        # Check if player has already answered this question or time is up
+                        has_answered = f"answered_paced_{player_q_index}" in st.session_state.player_answers
+                        is_time_up = time_left <= 0
+                        
+                        if has_answered or is_time_up:
+                            if has_answered:
+                                st.success("You've already answered this question!")
+                            else:
+                                st.error("Time's up!")
+                            st.info(f"The correct answer was: **{question['answer']}**")
                         else:
-                            st.error("Time's up!")
-                        st.info(f"The correct answer was: **{question['answer']}**")
+                            # Display answer options
+                            answer_icons = ["🟥", "🔷", "🟡", "💚"]
+                            cols = st.columns(2)
+                            for i, option in enumerate(question["options"]):
+                                with cols[i % 2]:
+                                    if st.button(f"{answer_icons[i]} {option}", use_container_width=True, key=f"paced_opt_{player_q_index}_{i}"):
+                                        st.session_state.player_answers[f"answered_paced_{player_q_index}"] = True
+                                        if option == question["answer"]:
+                                            st.balloons()
+                                            st.success("Correct!")
+                                            game_ref = st.session_state.db.collection("games").document(game_pin)
+                                            # Update the player's score within the nested map
+                                            player_score_field = f"players.{player_name}.score"
+                                            game_ref.update({player_score_field: firestore.Increment(1)})
+                                        else:
+                                            st.error("Incorrect!")
+
+                        # Navigation buttons
+                        st.markdown("---")
+                        nav_cols = st.columns(2)
+                        with nav_cols[0]:
+                            if st.button("Previous Question", disabled=player_q_index == 0, use_container_width=True):
+                                st.session_state.current_player_q_index -= 1
+                                del st.session_state.question_start_time # Reset timer
+                                st.rerun()
+                        with nav_cols[1]:
+                            if st.button("Next Question", disabled=player_q_index >= total_questions - 1, use_container_width=True):
+                                st.session_state.current_player_q_index += 1
+                                del st.session_state.question_start_time # Reset timer
+                                st.rerun()
                     else:
-                        # Display answer options
-                        answer_icons = ["🟥", "🔷", "🟡", "💚"]
-                        cols = st.columns(2)
-                        for i, option in enumerate(question["options"]):
-                            with cols[i % 2]:
-                                if st.button(f"{answer_icons[i]} {option}", use_container_width=True, key=f"paced_opt_{player_q_index}_{i}"):
-                                    st.session_state.player_answers[f"answered_paced_{player_q_index}"] = True
-                                    if option == question["answer"]:
-                                        st.balloons()
-                                        st.success("Correct!")
-                                        game_ref = st.session_state.db.collection("games").document(game_pin)
-                                        # Update the player's score within the nested map
-                                        player_score_field = f"players.{player_name}.score"
-                                        game_ref.update({player_score_field: firestore.Increment(1)})
-                                    else:
-                                        st.error("Incorrect!")
+                        st.header("🎉 Quiz Finished! 🎉")
 
-                    # Navigation buttons
-                    st.markdown("---")
-                    nav_cols = st.columns(2)
-                    with nav_cols[0]:
-                        if st.button("Previous Question", disabled=player_q_index == 0, use_container_width=True):
-                            st.session_state.current_player_q_index -= 1
-                            del st.session_state.question_start_time # Reset timer
-                            st.rerun()
-                    with nav_cols[1]:
-                        if st.button("Next Question", disabled=player_q_index >= total_questions - 1, use_container_width=True):
-                            st.session_state.current_player_q_index += 1
-                            del st.session_state.question_start_time # Reset timer
-                            st.rerun()
-                else:
-                    st.header("🎉 Quiz Finished! 🎉")
-
-        elif game_state["status"] == "finished":
-            st.balloons()
-            st.header("🎉 Quiz Finished! 🎉")
-
-        st.markdown("</div>", unsafe_allow_html=True)
+            elif game_state["status"] == "finished":
+                st.balloons()
+                st.header("🎉 Quiz Finished! 🎉")
