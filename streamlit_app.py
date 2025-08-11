@@ -13,7 +13,7 @@ import math
 APP_NAME = "Quizzicle"
 # Make sure "Loading image.jpeg" is in the same directory as this script.
 LOGO_URL = "Loading image.jpeg"
-PLAYER_MODE_URL = "https://your-streamlit-app-url.streamlit.app" # REMINDER: Change this to your deployed app's URL
+PLAYER_MODE_URL = "https://blank-app-s5sx65i2mng.streamlit.app/" # REMINDER: Change this to your deployed app's URL
 
 st.set_page_config(
     page_title=APP_NAME,
@@ -405,25 +405,25 @@ def player_game_screen():
                 else:
                     st.header("🎉 Quiz Finished! 🎉")
 
-        elif game_state["status"] == "finished":
-            st.balloons()
-            st.header("🎉 Quiz Finished! 🎉")
-            st.subheader("Your Results")
-            players_data = game_state.get('players', {})
-            sorted_players = sorted(players_data.items(), key=lambda item: item[1].get('score', 0), reverse=True)
-            player_rank = next((i for i, (name, _) in enumerate(sorted_players) if name == st.session_state.player_name), None)
-            if player_rank is not None:
-                player_score_data = players_data.get(st.session_state.player_name, {})
-                st.metric(label="Your Final Score", value=player_score_data.get('score', 0))
-                st.metric(label="Your Rank", value=f"#{player_rank + 1} of {len(sorted_players)} players")
-            st.markdown("---")
-            st.subheader("Final Leaderboard")
-            for i, (name, score_data) in enumerate(sorted_players):
-                medal = ""
-                if i == 0: medal = "🥇"
-                elif i == 1: medal = "🥈"
-                elif i == 2: medal = "🥉"
-                st.markdown(f"**{medal} {name}**: {score_data.get('score', 0)}")
+            elif game_state["status"] == "finished":
+                st.balloons()
+                st.header("🎉 Quiz Finished! 🎉")
+                st.subheader("Your Results")
+                players_data = game_state.get('players', {})
+                sorted_players = sorted(players_data.items(), key=lambda item: item[1].get('score', 0), reverse=True)
+                player_rank = next((i for i, (name, _) in enumerate(sorted_players) if name == st.session_state.player_name), None)
+                if player_rank is not None:
+                    player_score_data = players_data.get(st.session_state.player_name, {})
+                    st.metric(label="Your Final Score", value=player_score_data.get('score', 0))
+                    st.metric(label="Your Rank", value=f"#{player_rank + 1} of {len(sorted_players)} players")
+                st.markdown("---")
+                st.subheader("Final Leaderboard")
+                for i, (name, score_data) in enumerate(sorted_players):
+                    medal = ""
+                    if i == 0: medal = "🥇"
+                    elif i == 1: medal = "🥈"
+                    elif i == 2: medal = "🥉"
+                    st.markdown(f"**{medal} {name}**: {score_data.get('score', 0)}")
 
 
 def join_game_callback(player_name, game_pin):
@@ -440,14 +440,14 @@ if st.session_state.role is None:
         with st.container(border=True):
             st.header("🔑 Host Login")
             password = st.text_input("Enter Host Password:", type="password")
-            if st.button("Login", use_container_width=True):
+            if st.button("Login", use_container_width=True, key="host_login_btn"):
                 if "HOST_PASSWORD" in st.secrets and password == st.secrets["HOST_PASSWORD"]:
                     st.session_state.role = "host"
                     st.session_state.show_host_password_prompt = False
                     st.rerun()
                 else:
                     st.error("Incorrect password.")
-            if st.button("Back", use_container_width=True):
+            if st.button("Back", use_container_width=True, key="back_from_login_btn"):
                 st.session_state.show_host_password_prompt = False
                 st.rerun()
     else:
@@ -455,14 +455,13 @@ if st.session_state.role is None:
             st.header("👋 Welcome! Are you a Host or a Player?")
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("👩‍🏫 I am the Host", use_container_width=True):
-                    st.session_state.role = "host"
+                if st.button("👩‍🏫 I am the Host", use_container_width=True, key="host_btn"):
+                    st.session_state.show_host_password_prompt = True
                     st.rerun()
             with col2:
-                if st.button("🧑‍🎓 I am a Player", use_container_width=True, type="secondary"):
+                if st.button("🧑‍🎓 I am a Player", use_container_width=True, type="secondary", key="player_btn"):
                     st.session_state.role = "player"
                     st.rerun()
-
 elif st.session_state.role == "host":
     if 'game_pin' not in st.session_state:
         with st.container(border=True):
@@ -516,7 +515,6 @@ A: 4
                     except Exception as e:
                         st.session_state.create_game_error = f"An unexpected error occurred: {e}"
                 st.rerun()
-
     else:
         game_pin = st.session_state.game_pin
         game_state = get_game_state(game_pin)
@@ -585,7 +583,6 @@ A: 4
                 elif game_state["status"] == "finished":
                     st.balloons()
                     st.header("🎉 Quiz Finished! 🎉")
-
 elif st.session_state.role == "player":
     def player_game_screen():
         game_pin = st.session_state.game_pin
@@ -742,14 +739,14 @@ if st.session_state.role is None:
         with st.container(border=True):
             st.header("🔑 Host Login")
             password = st.text_input("Enter Host Password:", type="password")
-            if st.button("Login", use_container_width=True):
+            if st.button("Login", use_container_width=True, key="host_login_btn"):
                 if "HOST_PASSWORD" in st.secrets and password == st.secrets["HOST_PASSWORD"]:
                     st.session_state.role = "host"
                     st.session_state.show_host_password_prompt = False
                     st.rerun()
                 else:
                     st.error("Incorrect password.")
-            if st.button("Back", use_container_width=True):
+            if st.button("Back", use_container_width=True, key="back_from_login_btn"):
                 st.session_state.show_host_password_prompt = False
                 st.rerun()
     else:
@@ -757,11 +754,11 @@ if st.session_state.role is None:
             st.header("👋 Welcome! Are you a Host or a Player?")
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("👩‍🏫 I am the Host", use_container_width=True):
-                    st.session_state.role = "host"
+                if st.button("👩‍🏫 I am the Host", use_container_width=True, key="host_btn"):
+                    st.session_state.show_host_password_prompt = True
                     st.rerun()
             with col2:
-                if st.button("🧑‍🎓 I am a Player", use_container_width=True, type="secondary"):
+                if st.button("🧑‍🎓 I am a Player", use_container_width=True, type="secondary", key="player_btn"):
                     st.session_state.role = "player"
                     st.rerun()
 
@@ -886,7 +883,6 @@ A: 4
                 elif game_state["status"] == "finished":
                     st.balloons()
                     st.header("🎉 Quiz Finished! 🎉")
-
 elif st.session_state.role == "player":
     def player_game_screen():
         game_pin = st.session_state.game_pin
@@ -1029,17 +1025,6 @@ elif st.session_state.role == "player":
                     st.markdown(f"**{medal} {name}**: {score_data.get('score', 0)}")
 
 
-def join_game_callback(player_name, game_pin):
-    game_pin = game_pin.upper()
-    success, message = join_game(game_pin, player_name)
-    if success:
-        st.session_state.player_name = player_name
-        st.session_state.game_pin = game_pin
-    else:
-        st.error(message)
-
-# The primary entry point for the player's app logic
-if st.session_state.role == "player":
     if 'game_pin' not in st.session_state:
         # Initial join form
         with st.container(border=True):
@@ -1050,7 +1035,7 @@ if st.session_state.role == "player":
             pin_from_url = query_params.get("pin", [""])[0]
             game_pin_input = st.text_input("Game PIN:", value=pin_from_url, max_chars=4)
             
-            if st.button("Join Game", use_container_width=True, type="secondary") and player_name and game_pin_input:
+            if st.button("Join Game", use_container_width=True, type="secondary"):
                 game_pin_input = game_pin_input.upper()
                 success, message = join_game(game_pin_input, player_name)
                 if success:
