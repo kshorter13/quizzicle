@@ -1,1 +1,5 @@
 streamlit
+google-cloud-firestore
+qrcode
+Pillow
+streamlit-autorefresh
