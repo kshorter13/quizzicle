@@ -496,9 +496,11 @@ elif st.session_state.role == "player":
         if not game_state: 
             st.error("Game session ended.");
             st.stop()
+        
+        quiz_mode = game_state.get("quiz_mode")
 
-        # Add a light auto-refresher for players so their screen updates when the host moves on
-        st_autorefresh(interval=1000, key="player_refresher")
+        if quiz_mode == "participant_paced_with_timer":
+            st_autorefresh(interval=500, key="player_timer_refresher") # Use a faster refresh for the timer
 
         # Determine player's current score
         players_data = game_state.get("players", {})
@@ -509,8 +511,7 @@ elif st.session_state.role == "player":
         show_leaderboard(players_data)
         
         current_q_index = game_state.get("current_question_index", -1)
-        quiz_mode = game_state.get("quiz_mode")
-        
+
         with st.container(border=True): # Consolidate player screen into one main container
             if game_state["status"] == "waiting":
                 st.info("⏳ Waiting for the host to start the game...")
@@ -551,15 +552,18 @@ elif st.session_state.role == "player":
                     total_questions = len(game_state["questions"])
                     
                     # FIX: Corrected player screen logic for timed mode
+                    player_data = game_state['players'][player_name]
+                    player_q_index = player_data.get('last_answered_q', -1) + 1
+                    
                     if player_q_index < total_questions:
                         question = game_state["questions"][player_q_index]
                         
                         # Timer logic
                         time_per_question = game_state.get("time_per_question", 60)
                         
-                        # Use the Firestore server timestamp instead of a client-side timestamp
+                        # Use the Firestore server timestamp for accurate time sync
                         question_start_time = game_state.get("question_start_time")
-                        if question_start_time and game_state.get("status") == "in_progress":
+                        if question_start_time:
                             elapsed_time = time.time() - question_start_time.timestamp()
                             time_left = time_per_question - elapsed_time
                         else:
@@ -575,8 +579,7 @@ elif st.session_state.role == "player":
                         st.subheader(f"Question {player_q_index + 1}/{total_questions}")
                         st.title(question["question"])
                         
-                        # Check if player has already answered this question or time is up
-                        has_answered = f"answered_paced_{player_q_index}" in st.session_state.player_answers
+                        has_answered = player_data.get('last_answered_q', -1) >= player_q_index
                         is_time_up = time_left <= 0
                         
                         if has_answered or is_time_up:
@@ -585,6 +588,8 @@ elif st.session_state.role == "player":
                             else:
                                 st.error("Time's up!")
                             st.info(f"The correct answer was: **{question['answer']}**")
+                            # Add a placeholder to force a rerun for the timer display
+                            st.empty()
                         else:
                             # Display answer options
                             answer_icons = ["🟥", "🔷", "🟡", "💚"]
@@ -592,16 +597,19 @@ elif st.session_state.role == "player":
                             for i, option in enumerate(question["options"]):
                                 with cols[i % 2]:
                                     if st.button(f"{answer_icons[i]} {option}", use_container_width=True, key=f"paced_opt_{player_q_index}_{i}"):
-                                        st.session_state.player_answers[f"answered_paced_{player_q_index}"] = True
                                         if option == question["answer"]:
                                             st.balloons()
                                             st.success("Correct!")
                                             game_ref = st.session_state.db.collection("games").document(game_pin)
-                                            # Update the player's score within the nested map
-                                            player_score_field = f"players.{player_name}.score"
-                                            game_ref.update({player_score_field: firestore.Increment(1)})
+                                            # Update the player's score and last answered question in the database
+                                            game_ref.update({
+                                                f"players.{player_name}.score": firestore.Increment(1),
+                                                f"players.{player_name}.last_answered_q": player_q_index
+                                            })
                                         else:
                                             st.error("Incorrect!")
+                                            game_ref = st.session_state.db.collection("games").document(game_pin)
+                                            game_ref.update({f"players.{player_name}.last_answered_q": player_q_index})
                                         st.rerun()
 
                         # Navigation buttons
@@ -609,17 +617,18 @@ elif st.session_state.role == "player":
                         nav_cols = st.columns(2)
                         with nav_cols[0]:
                             if st.button("Previous Question", disabled=player_q_index == 0, use_container_width=True):
-                                st.session_state.current_player_q_index -= 1
+                                st.session_state.player_answers = {} # Clear local answers
+                                update_game_state(game_pin, {f"players.{player_name}.last_answered_q": player_q_index - 1})
                                 st.rerun()
                         with nav_cols[1]:
                             if st.button("Next Question", disabled=player_q_index >= total_questions - 1, use_container_width=True):
-                                st.session_state.current_player_q_index += 1
+                                update_game_state(game_pin, {f"players.{player_name}.last_answered_q": player_q_index + 1})
                                 st.rerun()
                     else:
                         st.header("🎉 Quiz Finished! 🎉")
 
             elif game_state["status"] == "finished":
-                # New End-of-Quiz Summary for Players
+                # End-of-Quiz Summary for Players
                 st.balloons()
                 st.header("🎉 Quiz Finished! 🎉")
                 st.subheader("Your Results")
