@@ -252,10 +252,9 @@ def show_leaderboard(players):
 
 def show_game_logo_host():
     """Displays the Quizzicle logo for the host page."""
-    # Use a container to prevent logo from taking up entire page width
     with st.container():
         st.image(LOGO_URL, width=100, use_container_width=False)
-        st.write(" ") # Add a small spacer
+        st.write(" ")
 
 # --- Main App Logic ---
 if 'role' not in st.session_state:
@@ -265,13 +264,11 @@ if 'show_host_password_prompt' not in st.session_state:
 if 'create_game_error' not in st.session_state:
     st.session_state.create_game_error = None
 
-# --- Re-introducing autorefresh for the host's waiting screen, but not for the player's ---
 if st.session_state.get('role') == 'host' and 'game_pin' in st.session_state:
     game_state = get_game_state(st.session_state.game_pin)
     if game_state and game_state.get('status') == 'waiting':
         st_autorefresh(interval=2000, key="host_refresher")
 
-# Host's view of the next question button is now a callback function
 def next_question_callback():
     game_state = get_game_state(st.session_state.game_pin)
     current_q_index = game_state.get("current_question_index", -1)
@@ -279,12 +276,10 @@ def next_question_callback():
         update_game_state(st.session_state.game_pin, {
             "current_question_index": current_q_index + 1
         })
-        # Reset the show_answer state for the next question
         st.session_state[f"show_answer_{current_q_index+1}"] = False
     else:
         update_game_state(st.session_state.game_pin, {"status": "finished"})
 
-# Player's game screen function, defined once.
 def player_game_screen():
     game_pin = st.session_state.game_pin
     player_name = st.session_state.player_name
@@ -337,8 +332,8 @@ def player_game_screen():
                                     else:
                                         st.error("Incorrect!")
                                     st.rerun()
-                        else:
-                            st.info("You've answered this question. Waiting for the host to move on.")
+                    else:
+                        st.info("You've answered this question. Waiting for the host to move on.")
                 else:
                     st.info("⏳ Waiting for the host to start the game...")
         
