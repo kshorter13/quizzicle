@@ -6,6 +6,7 @@ import io
 import qrcode
 from PIL import Image
 from google.cloud import firestore
+from streamlit_autorefresh import st_autorefresh
 import math
 
 # --- App Branding and Configuration ---
@@ -263,13 +264,12 @@ def show_game_logo():
 # --- Main App Logic ---
 show_game_logo()
 
-if 'role' not in st.session_state:
-    st.session_state.role = None
-    st.session_state.show_host_password_prompt = False
-    
-# Initialize a session state variable for validation errors
-if 'create_game_error' not in st.session_state:
-    st.session_state.create_game_error = None
+# --- Re-introducing autorefresh for the host's waiting screen, but not for the player's ---
+# This ensures the host sees new players as they join without a manual refresh
+if st.session_state.get('role') == 'host' and 'game_pin' in st.session_state:
+    game_state = get_game_state(st.session_state.game_pin)
+    if game_state and game_state.get('status') == 'waiting':
+        st_autorefresh(interval=2000, key="host_refresher")
 
 # Host's view of the next question button is now a callback function
 def next_question_callback():
@@ -422,6 +422,7 @@ A: 4
                             "current_question_index": 0,
                             "question_start_time": firestore.SERVER_TIMESTAMP
                         })
+                        st.rerun()
                 
                 elif game_state["status"] == "in_progress":
                     if quiz_mode == "instructor_paced":
@@ -474,7 +475,13 @@ elif st.session_state.role == "player":
         player_name = st.session_state.player_name
         game_state = get_game_state(game_pin)
         
-        if not game_state: st.error("Game session ended."); st.stop()
+        # This is a critical check to ensure the player's screen doesn't go blank
+        if not game_state: 
+            st.error("Game session ended.");
+            st.stop()
+
+        # Add a light auto-refresher for players so their screen updates when the host moves on
+        st_autorefresh(interval=1000, key="player_refresher")
 
         # Determine player's current score
         players_data = game_state.get("players", {})
@@ -490,9 +497,6 @@ elif st.session_state.role == "player":
         with st.container(border=True): # Consolidate player screen into one main container
             if game_state["status"] == "waiting":
                 st.info("⏳ Waiting for the host to start the game...")
-                # Add a button for the player to refresh their state manually, in case auto-refresh is slow
-                if st.button("Check for Game Start"):
-                    st.rerun()
             
             elif game_state["status"] == "in_progress":
                 if quiz_mode == "instructor_paced":
@@ -540,16 +544,18 @@ elif st.session_state.role == "player":
                         
                         # Timer logic
                         time_per_question = game_state.get("time_per_question", 60)
-                        now = firestore.SERVER_TIMESTAMP
-                        time_left = time_per_question
                         
-                        if "question_start_time" in st.session_state:
-                            # Cannot get server time from client, so we assume a start time
-                            # a more robust implementation would use a server function
-                            elapsed_time = time.time() - st.session_state.question_start_time
-                            time_left = time_per_question - elapsed_time
-                        else:
+                        # Check for the start time of the current question
+                        if 'question_start_time' not in st.session_state or st.session_state.current_player_q_index != st.session_state.get('last_q_index'):
                             st.session_state.question_start_time = time.time()
+                            st.session_state.last_q_index = st.session_state.current_player_q_index
+                            
+                        elapsed_time = time.time() - st.session_state.question_start_time
+                        time_left = time_per_question - elapsed_time
+                        
+                        # Check for time up to prevent negative numbers
+                        if time_left < 0:
+                            time_left = 0
 
                         # Display the question and timer
                         timer_text = st.empty()
@@ -593,12 +599,10 @@ elif st.session_state.role == "player":
                         with nav_cols[0]:
                             if st.button("Previous Question", disabled=player_q_index == 0, use_container_width=True):
                                 st.session_state.current_player_q_index -= 1
-                                del st.session_state.question_start_time # Reset timer
                                 st.rerun()
                         with nav_cols[1]:
                             if st.button("Next Question", disabled=player_q_index >= total_questions - 1, use_container_width=True):
                                 st.session_state.current_player_q_index += 1
-                                del st.session_state.question_start_time # Reset timer
                                 st.rerun()
                     else:
                         st.header("🎉 Quiz Finished! 🎉")
