@@ -11,7 +11,7 @@ import math
 
 # --- App Branding and Configuration ---
 APP_NAME = "Quizzicle"
-LOGO_URL = "https://private-user-images.githubusercontent.com/183680452/476401103-90597ce8-1b42-4243-9839-f81319e71ece.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NTQ4ODkyNDcsIm5iZiI6MTc1NDg4ODk0NywicGF0aCI6Ii8xODM2ODA0NTIvNDc2NDAxMTAzLTkwNTk3Y2U4LTFiNDItNDI0My05ODM5LWY4MTMxOWU3MWVjZS5wbmc_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjUwODExJTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI1MDgxMVQwNTA5MDdaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT03MWU5ZGNmZTM1MzFkYTU0MzE1YjQxMmU0MTc3ZmRlZGQxNGM0OGY1YTViODgyNDg4MDYzNjg1ZDFhNDE0MWE3JlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCJ9.q4tEJfIaB8jad2eWdNaB606pQSz0FVdnto72mOZG_CE" # URL for the Quizzicle logo
+LOGO_URL = "Loading image.jpg" # Corrected: Use the filename of your logo image
 PLAYER_MODE_URL = "https://your-streamlit-app-url.streamlit.app" # REMINDER: Change this to your deployed app's URL
 
 st.set_page_config(
@@ -306,6 +306,10 @@ elif st.session_state.role == "host":
         # Host creates a new game
         with st.container(border=True):
             st.header("✨ Create a New Game")
+            
+            if 'create_game_error' not in st.session_state:
+                st.session_state.create_game_error = None
+            
             host_name = st.text_input("Enter your name as Host:")
             uploaded_file = st.file_uploader("Upload Quiz TXT file", type="txt")
             
@@ -334,13 +338,25 @@ O: 4
 O: 5
 A: 4
                 """, language="text")
+            
+            if st.session_state.create_game_error:
+                st.error(st.session_state.create_game_error)
 
             if st.button("Create New Game", use_container_width=True):
-                if host_name and uploaded_file:
+                st.session_state.create_game_error = None
+                
+                if not host_name:
+                    st.session_state.create_game_error = "Please enter your name as the host."
+                    st.rerun()
+                elif not uploaded_file:
+                    st.session_state.create_game_error = "Please upload a quiz file."
+                    st.rerun()
+                else:
                     try:
                         stringio = io.StringIO(uploaded_file.getvalue().decode("utf-8"))
                         text_contents = stringio.read()
                         quiz_data = parse_text_quiz(text_contents)
+                        
                         if quiz_data:
                             st.session_state.game_pin = create_game_session(
                                 host_name, quiz_data, 
@@ -349,11 +365,11 @@ A: 4
                             )
                             st.rerun()
                         else:
-                            st.error("Invalid TXT format or empty file.")
+                            st.session_state.create_game_error = "Invalid TXT format or empty file."
+                            st.rerun()
                     except Exception as e:
-                        st.error(f"An error occurred: {e}")
-                else:
-                    st.warning("Please enter your name and upload a quiz file.")
+                        st.session_state.create_game_error = f"An error occurred: {e}"
+                        st.rerun()
     else:
         # Host Dashboard
         game_pin = st.session_state.game_pin
