@@ -404,13 +404,14 @@ A: 4
             st.markdown(f"**Direct Link:** `{PLAYER_MODE_URL}?pin={game_pin}`")
 
         with col_dashboard:
-            with st.container(border=True): # Removed redundant main-content containers
+            with st.container(border=True):
+                st.subheader("🏆 Live Leaderboard")
                 show_leaderboard(game_state.get("players", {}))
 
             current_q_index = game_state.get("current_question_index", -1)
             quiz_mode = game_state.get("quiz_mode")
             
-            with st.container(border=True): # Removed redundant main-content containers
+            with st.container(border=True):
                 if game_state["status"] == "waiting":
                     st.subheader("Waiting for players to join...")
                     st.info(f"Current Players: {len(game_state.get('players', {}))}")
@@ -443,8 +444,9 @@ A: 4
 
                         # Toggle answer visibility with a button
                         show_answer_key = f"show_answer_{current_q_index}"
-                        if st.button("Show Answer", key=f"btn_show_answer_{current_q_index}"):
-                            st.session_state[show_answer_key] = True
+                        
+                        # Fix: Changed button to toggle
+                        st.session_state[show_answer_key] = st.toggle("Show Answer", value=st.session_state[show_answer_key])
 
                         if st.session_state.get(show_answer_key):
                             st.success(f"**Correct Answer:** {question['answer']}")
