@@ -12,7 +12,7 @@ import math
 # --- App Branding and Configuration ---
 APP_NAME = "Quizzicle"
 # Make sure "Loading image.jpeg" is in the same directory as this script.
-LOGO_URL = "Loading image.jpeg" 
+LOGO_URL = "Loading image.jpeg"
 PLAYER_MODE_URL = "https://blank-app-s5sx65i2mng.streamlit.app/" # REMINDER: Change this to your deployed app's URL
 
 st.set_page_config(
@@ -424,20 +424,39 @@ A: 4
             
             elif game_state["status"] == "in_progress":
                 if quiz_mode == "instructor_paced":
-                    # Instructor-paced logic
+                    # Initialize session state for showing the answer
+                    if f"show_answer_{current_q_index}" not in st.session_state:
+                        st.session_state[f"show_answer_{current_q_index}"] = False
+
                     st.subheader(f"Question {current_q_index + 1}/{len(game_state['questions'])}")
                     question = game_state["questions"][current_q_index]
                     st.title(question["question"])
+                    
                     st.markdown("---")
                     
-                    st.write("Correct Answer:")
-                    st.success(f"**{question['answer']}**")
+                    # Display options for the host
+                    st.write("Options:")
+                    answer_icons = ["🟥", "🔷", "🟡", "💚"]
+                    for i, option in enumerate(question["options"]):
+                        st.markdown(f"{answer_icons[i]} {option}")
+                    
+                    st.markdown("---")
+
+                    # Toggle answer visibility with a button
+                    show_answer_key = f"show_answer_{current_q_index}"
+                    if st.button("Show Answer", key=f"btn_show_answer_{current_q_index}"):
+                        st.session_state[show_answer_key] = True
+
+                    if st.session_state.get(show_answer_key):
+                        st.success(f"**Correct Answer:** {question['answer']}")
                     
                     if st.button("Next Question", use_container_width=True, type="primary"):
                         if current_q_index + 1 < len(game_state["questions"]):
                             update_game_state(game_pin, {
                                 "current_question_index": current_q_index + 1
                             })
+                            # Reset the show_answer state for the next question
+                            st.session_state[show_answer_key] = False
                         else:
                             update_game_state(game_pin, {"status": "finished"})
                 
@@ -504,28 +523,33 @@ elif st.session_state.role == "player":
         
         elif game_state["status"] == "in_progress":
             if quiz_mode == "instructor_paced":
-                # Instructor-paced logic
-                if f"answered_{current_q_index}" in st.session_state:
-                    st.info("Waiting for the next question...")
+                if current_q_index > -1:
+                    # Player has not answered for this question yet
+                    if f"answered_{current_q_index}" not in st.session_state:
+                        question = game_state["questions"][current_q_index]
+                        st.subheader(f"Question {current_q_index + 1}")
+                        st.title(question["question"])
+                        
+                        answer_icons = ["🟥", "🔷", "🟡", "💚"]
+                        cols = st.columns(2)
+                        for i, option in enumerate(question["options"]):
+                            with cols[i % 2]:
+                                if st.button(f"{answer_icons[i]} {option}", use_container_width=True, key=f"opt_{i}"):
+                                    st.session_state[f"answered_{current_q_index}"] = True
+                                    if option == question["answer"]:
+                                        st.balloons()
+                                        st.success("Correct!")
+                                        player_score_field = f"players.{player_name}"
+                                        game_ref = st.session_state.db.collection("games").document(game_pin)
+                                        game_ref.update({player_score_field: firestore.Increment(1)})
+                                    else:
+                                        st.error("Incorrect!")
+                    # Player has answered for this question
+                    else:
+                        st.info("You've answered this question. Waiting for the host to move on.")
+                # Waiting for first question to start
                 else:
-                    question = game_state["questions"][current_q_index]
-                    st.subheader(f"Question {current_q_index + 1}")
-                    st.title(question["question"])
-                    
-                    answer_icons = ["🟥", "🔷", "🟡", "💚"]
-                    cols = st.columns(2)
-                    for i, option in enumerate(question["options"]):
-                        with cols[i % 2]:
-                            if st.button(f"{answer_icons[i]} {option}", use_container_width=True, key=f"opt_{i}"):
-                                st.session_state[f"answered_{current_q_index}"] = True
-                                if option == question["answer"]:
-                                    st.balloons()
-                                    st.success("Correct!")
-                                    player_score_field = f"players.{player_name}"
-                                    game_ref = st.session_state.db.collection("games").document(game_pin)
-                                    game_ref.update({player_score_field: firestore.Increment(1)})
-                                else:
-                                    st.error("Incorrect!")
+                    st.info("⏳ Waiting for the host to start the game...")
             
             elif quiz_mode == "participant_paced_with_timer":
                 total_questions = len(game_state["questions"])
