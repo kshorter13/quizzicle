@@ -517,6 +517,7 @@ elif st.session_state.role == "player":
         total_questions = len(game_state["questions"])
         
         with st.container(border=True): # Consolidate player screen into one main container
+            # Check the game status from the database to render the correct view
             if game_state["status"] == "waiting":
                 st.info("⏳ Waiting for the host to start the game...")
             
@@ -555,7 +556,7 @@ elif st.session_state.role == "player":
             
                 elif quiz_mode == "participant_paced_with_timer":
                     # FIX: Corrected player screen logic for timed mode
-                    if current_q_index < total_questions and game_state.get('status') == 'in_progress':
+                    if current_q_index < total_questions:
                         question = game_state["questions"][current_q_index]
                         
                         # Timer logic
@@ -567,8 +568,9 @@ elif st.session_state.role == "player":
                             elapsed_time = time.time() - question_start_time.timestamp()
                             time_left = time_per_question - elapsed_time
                         else:
+                            # If no start time is set, assume the page just loaded and start the timer
                             time_left = time_per_question
-
+                            
                         if time_left < 0:
                             time_left = 0
                             
