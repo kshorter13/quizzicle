@@ -11,7 +11,7 @@ import math
 
 # --- App Branding and Configuration ---
 APP_NAME = "Quizzicle"
-# Make sure "Loading image.jpeg" is in the same directory as this script.
+# Make sure "Loading image.jpg" is in the same directory as this script.
 LOGO_URL = "Loading image.jpeg" 
 PLAYER_MODE_URL = "https://your-streamlit-app-url.streamlit.app" # REMINDER: Change this to your deployed app's URL
 
@@ -308,9 +308,6 @@ elif st.session_state.role == "host":
         with st.container(border=True):
             st.header("✨ Create a New Game")
             
-            if 'create_game_error' not in st.session_state:
-                st.session_state.create_game_error = None
-            
             host_name = st.text_input("Enter your name as Host:")
             uploaded_file = st.file_uploader("Upload Quiz TXT file", type="txt")
             
@@ -340,18 +337,12 @@ O: 5
 A: 4
                 """, language="text")
             
-            if st.session_state.create_game_error:
-                st.error(st.session_state.create_game_error)
-
+            # --- FIX FOR THE CREATE GAME BUTTON ---
             if st.button("Create New Game", use_container_width=True):
-                st.session_state.create_game_error = None
-                
                 if not host_name:
-                    st.session_state.create_game_error = "Please enter your name as the host."
-                    st.rerun()
+                    st.error("Please enter your name as the host.")
                 elif not uploaded_file:
-                    st.session_state.create_game_error = "Please upload a quiz file."
-                    st.rerun()
+                    st.error("Please upload a quiz file.")
                 else:
                     try:
                         stringio = io.StringIO(uploaded_file.getvalue().decode("utf-8"))
@@ -364,13 +355,12 @@ A: 4
                                 quiz_mode.replace("-", "_").lower(), 
                                 time_per_question
                             )
+                            st.success("Game created successfully! Redirecting...")
                             st.rerun()
                         else:
-                            st.session_state.create_game_error = "Invalid TXT format or empty file."
-                            st.rerun()
+                            st.error("Invalid TXT format or empty file.")
                     except Exception as e:
-                        st.session_state.create_game_error = f"An error occurred: {e}"
-                        st.rerun()
+                        st.error(f"An error occurred: {e}")
     else:
         # Host Dashboard
         game_pin = st.session_state.game_pin
