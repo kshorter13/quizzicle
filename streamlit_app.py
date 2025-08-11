@@ -262,6 +262,15 @@ def show_game_logo():
 
 
 # --- Main App Logic ---
+# FIX: Initialize session state at the very top of the script
+if 'role' not in st.session_state:
+    st.session_state.role = None
+if 'show_host_password_prompt' not in st.session_state:
+    st.session_state.show_host_password_prompt = False
+if 'create_game_error' not in st.session_state:
+    st.session_state.create_game_error = None
+
+
 show_game_logo()
 
 # --- Re-introducing autorefresh for the host's waiting screen, but not for the player's ---
