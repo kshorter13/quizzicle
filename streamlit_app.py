@@ -436,8 +436,9 @@ A: 4
                 elif game_state["status"] == "in_progress":
                     if quiz_mode == "instructor_paced":
                         # Ensure show_answer state is reset when moving to a new question
-                        if f"show_answer_{current_q_index}" not in st.session_state:
-                            st.session_state[f"show_answer_{current_q_index}"] = False
+                        show_answer_key = f"show_answer_{current_q_index}"
+                        if show_answer_key not in st.session_state:
+                            st.session_state[show_answer_key] = False
 
                         st.subheader(f"Question {current_q_index + 1}/{len(game_state['questions'])}")
                         question = game_state["questions"][current_q_index]
