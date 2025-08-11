@@ -254,7 +254,8 @@ def show_game_logo():
     """Displays the Quizzicle logo."""
     col_logo, col_title = st.columns([1, 4])
     with col_logo:
-        st.image(LOGO_URL, width=100)
+        # Corrected parameter name from 'use_column_width' to 'use_container_width'
+        st.image(LOGO_URL, width=100, use_container_width=True) 
     with col_title:
         st.title(APP_NAME)
     st.markdown("---")
@@ -399,7 +400,7 @@ A: 4
             qr_img = qrcode.make(qr_text)
             buf = io.BytesIO()
             qr_img.save(buf, format="PNG")
-            st.image(buf, caption="Scan to join the game", use_column_width=True)
+            st.image(buf, caption="Scan to join the game", use_container_width=True)
             st.markdown(f"**Direct Link:** `{PLAYER_MODE_URL}?pin={game_pin}`")
 
         with col_dashboard:
