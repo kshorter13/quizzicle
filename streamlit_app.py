@@ -468,7 +468,6 @@ A: 4
 
 # --- PLAYER VIEW ---
 elif st.session_state.role == "player":
-    # Refactor the main player logic into a function to avoid duplication
     def player_game_screen():
         game_pin = st.session_state.game_pin
         player_name = st.session_state.player_name
@@ -479,7 +478,7 @@ elif st.session_state.role == "player":
             st.stop()
         
         quiz_mode = game_state.get("quiz_mode")
-
+        
         if quiz_mode == "participant_paced_with_timer":
             st_autorefresh(interval=500, key="player_timer_refresher")
 
@@ -527,13 +526,14 @@ elif st.session_state.role == "player":
                         st.info("⏳ Waiting for the host to start the game...")
             
                 elif quiz_mode == "participant_paced_with_timer":
+                    # FIX: Corrected player screen logic for timed mode
                     if current_q_index < total_questions:
                         question = game_state["questions"][current_q_index]
                         
                         time_per_question = game_state.get("time_per_question", 60)
                         question_start_time = game_state.get("question_start_time")
                         
-                        if question_start_time:
+                        if question_start_time and game_state.get("status") == "in_progress":
                             elapsed_time = time.time() - question_start_time.timestamp()
                             time_left = time_per_question - elapsed_time
                         else:
