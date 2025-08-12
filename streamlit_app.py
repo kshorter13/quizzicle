@@ -237,7 +237,10 @@ def show_leaderboard(players):
 def show_game_logo_host():
     """Displays the Quizzicle logo for the host page."""
     with st.container():
-        st.image(LOGO_URL, width=100, use_container_width=False)
+        try:
+            st.image(LOGO_URL, width=100, use_container_width=False)
+        except Exception:
+            st.write(f"_{APP_NAME}_") # Fallback if image not found
         st.write(" ")
 
 # --- Callbacks ---
@@ -252,7 +255,6 @@ def next_question_callback():
         update_game_state(st.session_state.game_pin, {"status": "finished"})
 
 # --- Screen Definitions ---
-
 def main_selection_screen():
     """Initial screen for selecting Host or Player role."""
     with st.container(border=True):
@@ -421,6 +423,10 @@ def player_game_screen():
     player_name = st.session_state.player_name
     game_state = get_game_state(game_pin)
 
+    # FIX: Auto-refresh if the game is active, regardless of mode.
+    if game_state and game_state.get("status") != "finished":
+        st_autorefresh(interval=2000, key="player_game_refresher")
+
     if not game_state:
         st.error("Game session has ended.")
         if st.button("Return to Join Screen"):
@@ -429,10 +435,6 @@ def player_game_screen():
             st.rerun()
         st.stop()
     
-    quiz_mode = game_state.get("quiz_mode")
-    if quiz_mode == "participant_paced_with_timer":
-        st_autorefresh(interval=1000, key="player_timer_refresher")
-
     players_data = game_state.get("players", {})
     player_data = players_data.get(player_name, {})
     current_score = player_data.get('score', 0)
@@ -445,6 +447,7 @@ def player_game_screen():
             st.info("⏳ Waiting for the host to start the game...")
         
         elif game_state["status"] == "in_progress":
+            quiz_mode = game_state.get("quiz_mode")
             if quiz_mode == "instructor_paced":
                 current_q_index_host = game_state.get("current_question_index", -1)
                 if current_q_index_host > -1:
@@ -539,8 +542,10 @@ if 'role' not in st.session_state:
     st.session_state.role = None
 if 'show_host_password_prompt' not in st.session_state:
     st.session_state.show_host_password_prompt = False
+if 'create_game_error' not in st.session_state:
+    st.session_state.create_game_error = None
 
-# Main router
+# Main router to display the correct screen
 if st.session_state.role is None:
     if st.session_state.show_host_password_prompt:
         host_login_screen()
