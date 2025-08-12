@@ -14,7 +14,7 @@ APP_NAME = "Quizzicle"
 # Make sure "Loading image.jpeg" is in the same directory as this script.
 LOGO_URL = "Loading image.jpeg"
 # REMINDER: Change this to your deployed app's URL
-PLAYER_MODE_URL = "https://your-streamlit-app-url.streamlit.app"
+PLAYER_MODE_URL = "https://blank-app-s5sx65i2mng.streamlit.app/"
 
 st.set_page_config(
     page_title=APP_NAME,
