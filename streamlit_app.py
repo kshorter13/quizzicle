@@ -194,7 +194,7 @@ def host_game_screen():
         st.error("Game not found."); del st.session_state.game_pin; st.rerun()
     
     if game_state['status'] != 'finished':
-        st_autorefresh(interval=2000, key="host_refresher")
+        st_autorefresh(interval=1000, key="host_refresher") # Faster refresh for timers
 
     c1, c2 = st.columns([1, 2])
     with c1:
@@ -232,18 +232,33 @@ def host_game_screen():
                 start_time = game_state.get("question_start_time")
                 time_left = time_per_q if not start_time else max(0, time_per_q - (time.time() - start_time.timestamp()))
                 st.progress(time_left / time_per_q, text=f":alarm_clock: {math.ceil(time_left)}s")
-                if is_last_question and time_left == 0 and not game_state.get('calculating'):
-                    update_game_state(game_pin, {"calculating": True})
-                    final_scores = calculate_final_scores(get_game_state(game_pin))
-                    update_game_state(game_pin, {"status": "finished", "players": final_scores, "calculating": firestore.DELETE_FIELD})
-                    st.rerun()
+                
+                # --- AUTO-ADVANCE LOGIC ---
+                if time_left == 0:
+                    if is_last_question:
+                        if not game_state.get('calculating'):
+                            update_game_state(game_pin, {"calculating": True})
+                            final_scores = calculate_final_scores(get_game_state(game_pin))
+                            update_game_state(game_pin, {"status": "finished", "players": final_scores, "calculating": firestore.DELETE_FIELD})
+                            st.rerun()
+                    else: # Auto-advance to next question
+                        update_game_state(game_pin, {
+                            "current_question_index": q_idx + 1,
+                            "question_start_time": firestore.SERVER_TIMESTAMP
+                        })
+                        time.sleep(1) # Brief pause for smoother transition
+                        st.rerun()
             
             st.markdown("---")
             for i, opt in enumerate(question["options"]): st.markdown(f"{['🟥', '🔷', '🟡', '💚'][i]} {opt}")
             st.markdown("---")
             if st.toggle("Show Correct Answer"): st.success(f"**Answer:** {question['answer']}")
             
-            if st.button("Next Question" if not is_last_question else "Finish Quiz", use_container_width=True, type="primary"):
+            button_text = "Next Question" if not is_last_question else "Finish Quiz"
+            if game_state['quiz_mode'] == 'timed_paced':
+                button_text = "Skip Timer / " + button_text
+
+            if st.button(button_text, use_container_width=True, type="primary"):
                 if not is_last_question:
                     update_data = {"current_question_index": q_idx + 1}
                     if game_state['quiz_mode'] == 'timed_paced':
