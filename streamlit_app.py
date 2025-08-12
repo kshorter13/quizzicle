@@ -254,22 +254,15 @@ def show_game_logo_host():
     """Displays the Quizzicle logo for the host page."""
     with st.container():
         st.image(LOGO_URL, width=100, use_container_width=False)
-        st.write(" ")
+        st.write(" ") # Add a small spacer
 
 # --- Main App Logic ---
-# All state variables initialized here to prevent errors
 if 'role' not in st.session_state:
     st.session_state.role = None
 if 'show_host_password_prompt' not in st.session_state:
     st.session_state.show_host_password_prompt = False
 if 'create_game_error' not in st.session_state:
     st.session_state.create_game_error = None
-if 'player_name' not in st.session_state:
-    st.session_state.player_name = None
-if 'game_pin' not in st.session_state:
-    st.session_state.game_pin = None
-if 'player_answers' not in st.session_state:
-    st.session_state.player_answers = {}
 
 # --- Re-introducing autorefresh for the host's waiting screen ---
 if st.session_state.get('role') == 'host' and st.session_state.get('game_pin'):
@@ -340,8 +333,8 @@ def player_game_screen():
                                     else:
                                         st.error("Incorrect!")
                                     st.rerun()
-                    else:
-                        st.info("You've answered this question. Waiting for the host to move on.")
+                        else:
+                            st.info("You've answered this question. Waiting for the host to move on.")
                 else:
                     st.info("⏳ Waiting for the host to start the game...")
         
@@ -4793,4 +4786,12 @@ elif st.session_state.role == "player":
                 st.header("🎉 Quiz Finished! 🎉")
                 st.subheader("Your Results")
                 players_data = game_state.get('players', {})
-                sorted_players = sorted(players_data.items(), key=lambda it
+                sorted_players = sorted(players_data.items(), key=lambda item: item[1].get('score', 0), reverse=True)
+                player_rank = next((i for i, (name, _) in enumerate(sorted_players) if name == st.session_state.player_name), None)
+                if player_rank is not None:
+                    player_score_data = players_data.get(st.session_state.player_name, {})
+                    st.metric(label="Your Final Score", value=player_score_data.get('score', 0))
+                    st.metric(label="Your Rank", value=f"#{player_rank + 1} of {len(sorted_players)} players")
+                st.markdown("---")
+                st.subheader("Final Leaderboard")
+                for i
