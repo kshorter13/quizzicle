@@ -73,20 +73,23 @@ def update_game_state(game_pin, new_state):
     st.session_state.db.collection("games").document(game_pin).update(new_state)
 
 def calculate_final_scores(game_state):
-    """Calculates scores for all players based on their stored answers."""
+    """Calculates or preserves scores based on the quiz mode."""
     questions = game_state.get('questions', [])
     players = game_state.get('players', {})
-    for player_name, player_data in players.items():
-        score = 0
-        player_answers = player_data.get('answers', {})
-        for q_idx, answer in player_answers.items():
-            try:
-                if answer == questions[int(q_idx)]['answer']:
-                    score += 1
-            except (IndexError, KeyError):
-                continue # Skip if question index is invalid
-        players[player_name]['score'] = score
-    return players
+    quiz_mode = game_state.get('quiz_mode')
+    new_players_data = players.copy()
+    for player_name, player_data in new_players_data.items():
+        if quiz_mode == 'timed_paced':
+            score = 0
+            player_answers = player_data.get('answers', {})
+            for q_idx, answer in player_answers.items():
+                try:
+                    if answer == questions[int(q_idx)]['answer']:
+                        score += 1
+                except (IndexError, KeyError):
+                    continue
+            player_data['score'] = score
+    return new_players_data
 
 def create_game_session(host_name, quiz_data, quiz_mode, time_per_question):
     game_pin = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
@@ -247,7 +250,8 @@ def host_game_screen():
                         update_data["question_start_time"] = firestore.SERVER_TIMESTAMP
                     update_game_state(game_pin, update_data)
                 else:
-                    final_scores = calculate_final_scores(game_state)
+                    current_game_state = get_game_state(game_pin)
+                    final_scores = calculate_final_scores(current_game_state)
                     update_game_state(game_pin, {"status": "finished", "players": final_scores})
                 st.rerun()
         
@@ -352,7 +356,7 @@ def player_game_screen():
             
             if rank is not None:
                 st.metric("Your Final Score", players.get(player_name, {}).get('score', 0))
-                st.metric("Your Rank", f"#{rank + 1} of {len(sorted_players)}")
+                st.metric("Your Rank", f"#{rank + 1} of {len(sorted_players)} players")
             
             if game_state['quiz_mode'] == 'timed_paced':
                 with st.expander("See your results"):
